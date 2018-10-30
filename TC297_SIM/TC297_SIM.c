@@ -21,6 +21,8 @@ int SIMULAPI SIMUL_Init(simulProcessor processor, simulCallbackStruct * cbs)
 		SCU_Init(processor, cbs);
 
 		EMEM_Init(processor, cbs);
+
+		CPU_Init(processor, cbs);
 		
 	    return SIMUL_INIT_OK;
 }

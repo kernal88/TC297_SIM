@@ -1467,6 +1467,19 @@ static int SIMULAPI CPU_PSW_write(simulProcessor processor, simulCallbackStruct 
 
 static int SIMULAPI CPU_PC_read(simulProcessor processor, simulCallbackStruct * cbs, simulPtr private)
 {
+	if ((cbs->x.bus.address >= &CPU0_PC) && (cbs->x.bus.address <= (&CPU0_PC + 3U)))
+	{
+		memcpy( &(cbs->x.bus.data), (unsigned char *)&cpu_regs[0].PC.U + (cbs->x.bus.address - (simulWord)&CPU0_PC), cbs->x.bus.width / 8U);
+	} 
+	else if ((cbs->x.bus.address >= &CPU1_PC) && (cbs->x.bus.address <= (&CPU1_PC + 3U)))
+	{
+		memcpy( &(cbs->x.bus.data), (unsigned char *)&cpu_regs[1].PC.U + (cbs->x.bus.address - (simulWord)&CPU1_PC), cbs->x.bus.width / 8U);
+	}
+	else if ((cbs->x.bus.address >= &CPU2_PC) && (cbs->x.bus.address <= (&CPU2_PC + 3U)))
+	{
+		memcpy( &(cbs->x.bus.data), (unsigned char *)&cpu_regs[2].PC.U + (cbs->x.bus.address - (simulWord)&CPU2_PC), cbs->x.bus.width / 8U);
+	}
+
 	sprintf(buf, "CPU_PC_read address 0x%x width 0x%x type 0x%x  data 0x%x\n", cbs->x.bus.address, cbs->x.bus.width, cbs->type, cbs->x.bus.data);
 	SIMUL_WritelineFile(processor, CPU_debug_file, buf);
 
@@ -1475,6 +1488,20 @@ static int SIMULAPI CPU_PC_read(simulProcessor processor, simulCallbackStruct * 
 
 static int SIMULAPI CPU_PC_write(simulProcessor processor, simulCallbackStruct * cbs, simulPtr private)
 {
+	if ((cbs->x.bus.address >= &CPU0_PC) && (cbs->x.bus.address <= (&CPU0_PC + 3U)))
+	{
+		memcpy((unsigned char *)&cpu_regs[0].PC.U + (cbs->x.bus.address - (simulWord)&CPU0_PC), &(cbs->x.bus.data), cbs->x.bus.width / 8U);
+	} 
+	else if ((cbs->x.bus.address >= &CPU1_PC) && (cbs->x.bus.address <= (&CPU1_PC + 3U)))
+	{
+		memcpy((unsigned char *)&cpu_regs[1].PC.U + (cbs->x.bus.address - (simulWord)&CPU1_PC), &(cbs->x.bus.data), cbs->x.bus.width / 8U);
+	}
+	else if ((cbs->x.bus.address >= &CPU2_PC) && (cbs->x.bus.address <= (&CPU2_PC + 3U)))
+	{
+		memcpy((unsigned char *)&cpu_regs[2].PC.U + (cbs->x.bus.address - (simulWord)&CPU2_PC), &(cbs->x.bus.data), cbs->x.bus.width / 8U);
+	}
+
+
 	sprintf(buf, "CPU_PC_write address 0x%x width 0x%x type 0x%x  data 0x%x\n", cbs->x.bus.address, cbs->x.bus.width, cbs->type, cbs->x.bus.data);
 	SIMUL_WritelineFile(processor, CPU_debug_file, buf);
 
@@ -1894,4 +1921,52 @@ static void CPU_reg_init(void)
 	cpu_sprot[0].ACCENA.U = 0xFFFFFFFF;
 	cpu_sprot[0].ACCENB.U = 0x00000000;
 
+}
+
+
+void CPU_Init(simulProcessor processor, simulCallbackStruct * cbs) 
+{
+	simulWord   from = 0;
+	simulWord	to = 0;
+	unsigned int i = 0;
+
+	CPU_debug_file = SIMUL_OpenFile(processor, "./debug_cpu.log", SIMUL_FILE_CREATE);
+	if (CPU_debug_file != NULL)
+	{
+		SIMUL_Warning(processor, "create file debug_cpu.log success!");
+	} 
+	else
+	{
+		SIMUL_Warning(processor, "create file debug_cpu.log failed!");
+		return ;
+	}
+
+	sprintf(buf, "CPU_Init bus type %d\n", cbs->x.init.argpbustype[1]);
+	SIMUL_WritelineFile(processor, CPU_debug_file, buf);
+
+	CPU_reg_init();
+
+	for (i = 0; i< (sizeof(cpu_regs_opt)/sizeof(reg_opt)); i++)
+	{
+		if (cpu_regs_opt[i].reg_read_func_ptr != NULL)
+		{
+			from = cpu_regs_opt[i].offset;
+			to = from + 3U;
+
+			sprintf(buf, "cpu_init read func ptr 0x%x  from 0x%x to 0x%x\n", cpu_regs_opt[i].reg_read_func_ptr, from, to);
+			SIMUL_WriteFile(processor, CPU_debug_file, buf, strlen(buf));
+
+			SIMUL_RegisterBusReadCallback(processor, cpu_regs_opt[i].reg_read_func_ptr, (simulPtr)NULL, cbs->x.init.argpbustype[1], (simulWord *)&from, (simulWord *)&to);
+		}
+		if (cpu_regs_opt[i].reg_write_func_ptr != NULL)
+		{
+			from = cpu_regs_opt[i].offset;
+			to = from + 3U;
+
+			sprintf(buf, "cpu_init write func ptr 0x%x  from 0x%x to 0x%x\n", cpu_regs_opt[i].reg_write_func_ptr, from, to);
+			SIMUL_WriteFile(processor, CPU_debug_file, buf, strlen(buf));
+
+			SIMUL_RegisterBusWriteCallback(processor, cpu_regs_opt[i].reg_write_func_ptr  , (simulPtr)NULL, cbs->x.init.argpbustype[1], (simulWord *)&from, (simulWord *)&to);
+		}
+	}
 }
